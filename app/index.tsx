@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as NavigationBar from 'expo-navigation-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Modal,
+  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -13,6 +16,7 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import {
   CoordinateRecord,
+  deleteRoute,
   getCoordinatesForRoute,
   getRoutes,
   initializeDatabase
@@ -81,6 +85,8 @@ export default function Index() {
   // State management
   const [routes, setRoutes] = useState<DisplayRoute[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [routeToDelete, setRouteToDelete] = useState<DisplayRoute | null>(null);
 
   // Load routes with enhanced data
   const loadRoutes = async () => {
@@ -145,6 +151,15 @@ export default function Index() {
     }, [])
   );
 
+  useEffect(() => {
+
+    if (deleteModalVisible) {
+      NavigationBar.setVisibilityAsync("hidden");
+    } else {
+      NavigationBar.setVisibilityAsync("visible");
+    }
+  }, [deleteModalVisible])
+
   const navigateToSettings = () => {
     router.push('/settings');
   };
@@ -153,12 +168,53 @@ export default function Index() {
     router.push('/tracking');
   };
 
+  const handleLongPress = (route: DisplayRoute) => {
+    console.log('Long press detected for route:', route.name);
+    setRouteToDelete(route);
+    setDeleteModalVisible(true);
+    NavigationBar.setVisibilityAsync("hidden");
+
+  };
+
+  const handleDeleteRoute = async () => {
+    if (!routeToDelete) return;
+
+    try {
+      setLoading(true);
+      await deleteRoute(routeToDelete.id);
+      console.log(`Deleted route: ${routeToDelete.name}`);
+
+      // Close modal and clear selection
+      setDeleteModalVisible(false);
+      setRouteToDelete(null);
+
+      // Reload routes to reflect the deletion
+      await loadRoutes();
+    } catch (error) {
+      console.error('Error deleting route:', error);
+      Alert.alert('Error', 'Failed to delete the route. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteModalVisible(false);
+    setRouteToDelete(null);
+  };
+
   const renderRouteItem = ({ item }: { item: DisplayRoute }) => (
-    <TouchableOpacity
-      style={getStyles(theme).routeItem}
+    <Pressable
+      style={({ pressed }) => [
+        getStyles(theme).routeItem,
+        pressed && { opacity: 0.7, backgroundColor: theme.border }
+      ]}
       onPress={() => {
         router.push(`/map?routeId=${item.id}&routeName=${encodeURIComponent(item.name)}`);
       }}
+      onLongPress={() => handleLongPress(item)}
+      delayLongPress={300}
+      onPressIn={() => console.log('Press started on route:', item.name)}
     >
       <View style={getStyles(theme).routeHeader}>
         <Text style={getStyles(theme).routeName}>{item.name}</Text>
@@ -173,7 +229,7 @@ export default function Index() {
           {item.coordinateCount} points
         </Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   return (
@@ -222,12 +278,67 @@ export default function Index() {
                 keyExtractor={(item) => item.id.toString()}
                 style={getStyles(theme).routesList}
                 showsVerticalScrollIndicator={false}
-                refreshing={loading}
-                onRefresh={loadRoutes}
+                refreshing={false}
+                onRefresh={undefined}
+                scrollEnabled={true}
               />
             )}
           </View>
         </View>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={deleteModalVisible}
+          onRequestClose={handleCancelDelete}
+          statusBarTranslucent={true}
+        >
+          <TouchableOpacity
+            style={getStyles(theme).modalOverlay}
+            activeOpacity={1}
+            onPress={() => setDeleteModalVisible(false)}
+          >
+
+
+            <View style={getStyles(theme).modalContainer}>
+              <TouchableOpacity
+                activeOpacity={1}
+              >
+                <View style={getStyles(theme).modalHeader}>
+                  <Ionicons name="warning" size={32} color={theme.error} />
+                  <Text style={getStyles(theme).modalTitle}>Delete Route</Text>
+                </View>
+
+                <Text style={getStyles(theme).modalMessage}>
+                  Are you sure you want to delete "{routeToDelete?.name}"?
+                </Text>
+
+                <Text style={getStyles(theme).modalWarning}>
+                  This action cannot be undone. All tracking data for this route will be permanently deleted.
+                </Text>
+
+                <View style={getStyles(theme).modalButtons}>
+                  <TouchableOpacity
+                    style={[getStyles(theme).modalButton, getStyles(theme).cancelButton]}
+                    onPress={handleCancelDelete}
+                  >
+                    <Text style={getStyles(theme).cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[getStyles(theme).modalButton, getStyles(theme).deleteButton]}
+                    onPress={handleDeleteRoute}
+                  >
+                    <Text style={getStyles(theme).deleteButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+
+            </View>
+          </TouchableOpacity>
+
+        </Modal>
       </SafeAreaView>
     </View>
   );
@@ -369,5 +480,78 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: theme.surface,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    shadowColor: theme.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: theme.text,
+    marginTop: 8,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: theme.text,
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 22,
+  },
+  modalWarning: {
+    fontSize: 14,
+    color: theme.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: theme.textTertiary + '20',
+    borderWidth: 1,
+    borderColor: theme.textTertiary + '40',
+  },
+  deleteButton: {
+    backgroundColor: theme.error,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.text,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.white || '#FFFFFF',
   },
 });

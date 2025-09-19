@@ -1,13 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import * as NavigationBar from 'expo-navigation-bar';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     FlatList,
+    Modal,
     SafeAreaView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
@@ -20,7 +24,8 @@ import {
     deleteRoute,
     getCoordinatesForRoute,
     getTrackingSettings,
-    RouteRecord
+    RouteRecord,
+    updateRoute
 } from '../lib/database';
 
 interface Coordinate {
@@ -59,6 +64,13 @@ export default function TrackingPage() {
     // Dynamic tracking intervals loaded from settings
     const [trackingIntervalSeconds, setTrackingIntervalSeconds] = useState(DEFAULT_TRACKING_INTERVAL_SECONDS);
     const [trackingIntervalM, setTrackingIntervalM] = useState(DEFAULT_TRACKING_INTERVAL_M);
+
+    // Edit modal state
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editRouteName, setEditRouteName] = useState('');
+    const [isEditLoading, setIsEditLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
 
     // Load tracking settings from database
@@ -145,6 +157,7 @@ export default function TrackingPage() {
     };
 
     const createAutoRoute = async () => {
+        console.log('Creating auto route...');
         try {
             // Generate a unique name with timestamp
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -152,13 +165,14 @@ export default function TrackingPage() {
             const time = timestamp.split('T')[1].substring(0, 8).replace(/-/g, ':');
 
             const autoRouteName = `${date} ${time}`;
+            console.log('Auto route name:', autoRouteName);
 
             const route = await createRoute(autoRouteName);
             setAutoCreatedRoute(route);
             setCurrentRoute(route);
             setCoordinates([]); // Clear coordinates for new route
 
-            console.log('Auto-created route:', route);
+            console.log('Auto-created route successfully:', route);
         } catch (error) {
             console.error('Error creating auto route:', error);
             // Don't show alert for auto-creation failure, just log it
@@ -178,9 +192,63 @@ export default function TrackingPage() {
         }
     };
 
-    const navigateToEditRoute = () => {
+    const openEditModal = () => {
+        NavigationBar.setVisibilityAsync("hidden");
+        console.log('Edit button clicked, currentRoute:', currentRoute);
+        if (!currentRoute) {
+            Alert.alert('No Route Available', 'Please wait for the route to load or start tracking to create a route.');
+            return;
+        }
+        setEditRouteName(currentRoute.name);
+        setShowEditModal(true);
+    };
+
+    const handleEditSave = async () => {
         if (!currentRoute) return;
-        router.push(`/edit-route?routeId=${currentRoute.id}`);
+
+        const trimmedName = editRouteName.trim();
+        if (!trimmedName) {
+            Alert.alert('Invalid Name', 'Please enter a route name.');
+            return;
+        }
+
+        if (trimmedName === currentRoute.name) {
+            // No changes made
+            setShowEditModal(false);
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await updateRoute(currentRoute.id!, trimmedName);
+            setCurrentRoute({ ...currentRoute, name: trimmedName });
+            setShowEditModal(false);
+        } catch (error) {
+            console.error('Error updating route:', error);
+            Alert.alert('Error', 'Failed to update route. The name might already exist.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleEditDelete = () => {
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmEditDelete = async () => {
+        if (!currentRoute) return;
+
+        setShowDeleteConfirm(false);
+        setShowEditModal(false);
+        try {
+            await deleteRoute(currentRoute.id!);
+            setCurrentRoute(null);
+            setCoordinates([]);
+            router.replace('/');
+        } catch (error) {
+            console.error('Error deleting route:', error);
+            Alert.alert('Error', 'Failed to delete route.');
+        }
     };
 
     // Reload route data when returning from edit page
@@ -327,21 +395,21 @@ export default function TrackingPage() {
                         style={[
                             getStyles(theme).button,
                             getStyles(theme).editButton,
-                            isTracking && getStyles(theme).editButtonDisabled,
+                            (isTracking || !currentRoute) && getStyles(theme).editButtonDisabled,
                         ]}
-                        onPress={navigateToEditRoute}
-                        disabled={isTracking}
+                        onPress={openEditModal}
+                        disabled={isTracking || !currentRoute}
                     >
                         <Ionicons
                             name="create-outline"
                             size={20}
-                            color={isTracking ? theme.textTertiary : theme.secondary}
+                            color={(isTracking || !currentRoute) ? theme.textTertiary : theme.secondary}
                         />
                         <Text style={[
                             getStyles(theme).editButtonText,
-                            isTracking && getStyles(theme).editButtonTextDisabled
+                            (isTracking || !currentRoute) && getStyles(theme).editButtonTextDisabled
                         ]}>
-                            Edit
+                            {!currentRoute ? 'Loading...' : 'Edit'}
                         </Text>
                     </TouchableOpacity>
 
@@ -425,6 +493,123 @@ export default function TrackingPage() {
                     </MapView>
                 </View>
             </View>
+
+            {/* Edit Route Modal */}
+            <Modal
+                visible={showEditModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowEditModal(false)}
+                statusBarTranslucent={true}
+            >
+                <TouchableOpacity
+                    style={getStyles(theme).modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowEditModal(false)}
+                >
+                    <StatusBar
+                        style={isDark ? "light" : "dark"}
+                        backgroundColor="transparent"
+                    />
+                    <TouchableOpacity
+                        style={getStyles(theme).modalContainer}
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                    >
+                        <Text style={getStyles(theme).modalTitle}>Edit Route</Text>
+
+                        <View style={getStyles(theme).inputContainer}>
+                            <Text style={getStyles(theme).inputLabel}>Route Name</Text>
+                            <TextInput
+                                style={getStyles(theme).textInput}
+                                value={editRouteName}
+                                onChangeText={setEditRouteName}
+                                placeholder="Enter route name"
+                                placeholderTextColor={theme.textTertiary}
+                                autoFocus={true}
+                                editable={!isSaving}
+                            />
+                        </View>
+
+                        <View style={getStyles(theme).modalButtons}>
+                            <TouchableOpacity
+                                style={[getStyles(theme).modalButton, getStyles(theme).modalCancelButton]}
+                                onPress={() => setShowEditModal(false)}
+                                disabled={isSaving}
+                            >
+                                <Text style={getStyles(theme).modalCancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[getStyles(theme).modalButton, getStyles(theme).modalSaveButton]}
+                                onPress={handleEditSave}
+                                disabled={isSaving}
+                            >
+                                <Text style={getStyles(theme).modalSaveButtonText}>
+                                    {isSaving ? 'Saving...' : 'Save'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            style={getStyles(theme).deleteButtonSection}
+                            onPress={handleEditDelete}
+                            disabled={isSaving}
+                        >
+                            <Ionicons name="trash-outline" size={20} color={theme.error} />
+                            <Text style={getStyles(theme).deleteButtonText}>Delete Route</Text>
+                        </TouchableOpacity>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+                visible={showDeleteConfirm}
+                animationType="fade"
+                transparent={true}
+                onRequestClose={() => setShowDeleteConfirm(false)}
+                statusBarTranslucent={true}
+            >
+                <TouchableOpacity
+                    style={getStyles(theme).modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowDeleteConfirm(false)}
+                >
+                    <TouchableOpacity
+                        style={getStyles(theme).confirmationModalContainer}
+                        activeOpacity={1}
+                        onPress={(e) => e.stopPropagation()}
+                    >
+                        <Ionicons
+                            name="trash-outline"
+                            size={48}
+                            color={theme.error}
+                            style={getStyles(theme).confirmationIcon}
+                        />
+                        <Text style={getStyles(theme).confirmationTitle}>Delete Route</Text>
+                        <Text style={getStyles(theme).confirmationMessage}>
+                            Are you sure you want to delete "{currentRoute?.name}"? This will also delete all coordinates for this route.
+                        </Text>
+
+                        <View style={getStyles(theme).confirmationButtons}>
+                            <TouchableOpacity
+                                style={[getStyles(theme).confirmationButton, getStyles(theme).cancelButton]}
+                                onPress={() => setShowDeleteConfirm(false)}
+                            >
+                                <Text style={getStyles(theme).cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[getStyles(theme).confirmationButton, getStyles(theme).destructiveButton]}
+                                onPress={confirmEditDelete}
+                            >
+                                <Text style={getStyles(theme).destructiveButtonText}>Delete</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -599,5 +784,152 @@ const getStyles = (theme: any) => StyleSheet.create({
     },
     map: {
         flex: 1,
+    },
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100%',
+        width: '100%',
+    },
+    modalContainer: {
+        backgroundColor: theme.surface,
+        borderRadius: 12,
+        padding: 20,
+        width: '90%',
+        maxWidth: 400,
+        shadowColor: theme.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: theme.text,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    inputContainer: {
+        marginBottom: 20,
+    },
+    inputLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: theme.text,
+        marginBottom: 8,
+    },
+    textInput: {
+        backgroundColor: theme.background,
+        borderColor: theme.border,
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        color: theme.text,
+        marginBottom: 4,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 10,
+        marginBottom: 20,
+    },
+    modalButton: {
+        flex: 1,
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    modalCancelButton: {
+        backgroundColor: theme.surface,
+        borderWidth: 1,
+        borderColor: theme.border,
+    },
+    modalSaveButton: {
+        backgroundColor: theme.primary,
+    },
+    modalCancelButtonText: {
+        color: theme.textSecondary,
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    modalSaveButtonText: {
+        color: theme.white,
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    deleteButtonSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        backgroundColor: theme.background,
+        borderWidth: 1,
+        borderColor: theme.border,
+        gap: 8,
+    },
+    deleteButtonText: {
+        color: theme.error,
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    // Confirmation modal styles
+    confirmationModalContainer: {
+        backgroundColor: theme.surface,
+        borderRadius: 16,
+        padding: 24,
+        width: '90%',
+        maxWidth: 400,
+        alignItems: 'center',
+        shadowColor: theme.shadow,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        elevation: 12,
+    },
+    confirmationIcon: {
+        marginBottom: 16,
+    },
+    confirmationTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: theme.text,
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    confirmationMessage: {
+        fontSize: 16,
+        color: theme.textSecondary,
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 24,
+    },
+    confirmationButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 12,
+        width: '100%',
+    },
+    confirmationButton: {
+        flex: 1,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    destructiveButton: {
+        backgroundColor: theme.error,
+    },
+    destructiveButtonText: {
+        color: theme.white,
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

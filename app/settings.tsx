@@ -299,25 +299,6 @@ export default function SettingsPage() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView style={getStyles(theme).container}>
         <ScrollView style={getStyles(theme).content} showsVerticalScrollIndicator={false}>
-          {/* Privacy Section */}
-          <View style={getStyles(theme).section}>
-            <Text style={getStyles(theme).sectionTitle}>Privacy</Text>
-
-            <SettingItem
-              icon="location-outline"
-              title="Location Tracking"
-              subtitle="Allow app to track your location"
-              rightElement={
-                <Switch
-                  value={locationTracking}
-                  onValueChange={setLocationTracking}
-                  trackColor={{ false: theme.border, true: theme.primary }}
-                  thumbColor={theme.white}
-                />
-              }
-            />
-
-          </View>
 
           {/* Appearance Section */}
           <View style={getStyles(theme).section}>
@@ -386,12 +367,20 @@ export default function SettingsPage() {
           onRequestClose={() => setShowTrackingModal(false)}
           statusBarTranslucent={true}
         >
-          <View style={getStyles(theme).modalOverlay}>
+          <TouchableOpacity
+            style={getStyles(theme).modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowTrackingModal(false)}
+          >
             <StatusBar
               style={isDark ? "light" : "dark"}
               backgroundColor="transparent"
             />
-            <View style={getStyles(theme).modalContainer}>
+            <TouchableOpacity
+              style={getStyles(theme).modalContainer}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
               <Text style={getStyles(theme).modalTitle}>Tracking Settings</Text>
 
               <View style={getStyles(theme).inputContainer}>
@@ -435,8 +424,8 @@ export default function SettingsPage() {
                   <Text style={getStyles(theme).saveButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
 
         {/* Clear Data Confirmation Modal */}
@@ -447,12 +436,20 @@ export default function SettingsPage() {
           onRequestClose={() => setShowClearDataModal(false)}
           statusBarTranslucent={true}
         >
-          <View style={getStyles(theme).modalOverlay}>
+          <TouchableOpacity
+            style={getStyles(theme).modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowClearDataModal(false)}
+          >
             <StatusBar
               style={isDark ? "light" : "dark"}
               backgroundColor="transparent"
             />
-            <View style={getStyles(theme).confirmationModalContainer}>
+            <TouchableOpacity
+              style={getStyles(theme).confirmationModalContainer}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
               <Ionicons
                 name="trash-outline"
                 size={48}
@@ -479,8 +476,8 @@ export default function SettingsPage() {
                   <Text style={getStyles(theme).destructiveButtonText}>Delete</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
 
         {/* Export Data Confirmation Modal */}
@@ -491,12 +488,20 @@ export default function SettingsPage() {
           onRequestClose={() => setShowExportModal(false)}
           statusBarTranslucent={true}
         >
-          <View style={getStyles(theme).modalOverlay}>
+          <TouchableOpacity
+            style={getStyles(theme).modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowExportModal(false)}
+          >
             <StatusBar
               style={isDark ? "light" : "dark"}
               backgroundColor="transparent"
             />
-            <View style={getStyles(theme).confirmationModalContainer}>
+            <TouchableOpacity
+              style={getStyles(theme).confirmationModalContainer}
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
               <Ionicons
                 name="download-outline"
                 size={48}
@@ -523,8 +528,8 @@ export default function SettingsPage() {
                   <Text style={getStyles(theme).saveButtonText}>Export</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
       </SafeAreaView>
     </View>
