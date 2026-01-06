@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as NavigationBar from 'expo-navigation-bar';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -23,6 +23,7 @@ import {
     createRoute,
     deleteRoute,
     getCoordinatesForRoute,
+    getRouteById,
     getTrackingSettings,
     initializeDatabase,
     RouteRecord,
@@ -109,6 +110,7 @@ const biskupinCoords = {
 export default function TrackingPage() {
     const { theme, isDark } = useTheme();
     const { foregroundPermissionGranted, backgroundPermissionGranted } = usePermissions();
+    const { routeId, routeName } = useLocalSearchParams<{ routeId?: string; routeName?: string }>();
     const [isTracking, setIsTracking] = useState(false);
     const [accuracy, setAccuracy] = useState<number>();
     const [initializationError, setInitializationError] = useState<string | null>(null);
@@ -135,6 +137,9 @@ export default function TrackingPage() {
 
     // Ref to store current route for cleanup function
     const currentRouteRef = useRef<RouteRecord | null>(null);
+
+    // Ref to track if we've saved any coordinates (to prevent premature cleanup)
+    const hasSavedCoordinates = useRef<boolean>(false);
 
 
     // Load tracking settings from database
@@ -178,12 +183,12 @@ export default function TrackingPage() {
                     // Continue with defaults
                 }
 
-                // Create auto route
+                // Load existing route or create auto route
                 try {
-                    await createAutoRoute();
+                    await loadOrCreateRoute();
                     console.log('Tracking page initialization complete');
                 } catch (routeError) {
-                    console.error('Warning: Failed to create auto route:', routeError);
+                    console.error('Warning: Failed to load/create route:', routeError);
                     // Non-critical, can be created later
                 }
 
@@ -224,22 +229,25 @@ export default function TrackingPage() {
             };
             stopBackgroundLocation();
 
-            // Cleanup unused route if tracking was never started
+            // Cleanup unused route only if it was auto-created and never used
+            // Don't cleanup routes that were loaded from URL params (continuing existing routes)
             console.log('TrackingPage: Starting cleanup of unused route...');
 
-            // Make cleanup synchronous to ensure it completes before navigation
             const route = currentRouteRef.current;
-            if (route?.id) {
-                console.log('TrackingPage: Synchronous cleanup for route:', route.id, route.name);
+            const hasCoordinates = hasSavedCoordinates.current;
 
-                // Check if route has coordinates synchronously and delete if empty
+            // Only cleanup if this was NOT a route loaded from URL params AND we haven't saved any coordinates
+            if (route?.id && !routeId && !hasCoordinates) {
+                console.log('TrackingPage: Checking auto-created route for cleanup:', route.id, route.name);
+
+                // Double-check database to be safe, but we already know from the ref
                 getCoordinatesForRoute(route.id)
                     .then(coordinates => {
                         if (coordinates.length === 0 && route.id) {
                             console.log('TrackingPage: Route has no coordinates, deleting:', route.name);
                             return deleteRoute(route.id);
                         } else {
-                            console.log('TrackingPage: Route has coordinates, keeping it');
+                            console.log('TrackingPage: Route has', coordinates.length, 'coordinates, keeping it');
                         }
                     })
                     .then(() => {
@@ -249,10 +257,16 @@ export default function TrackingPage() {
                         console.error('TrackingPage: Error during cleanup:', error);
                     });
             } else {
-                console.log('TrackingPage: No route to cleanup');
+                if (routeId) {
+                    console.log('TrackingPage: Skipping cleanup - route was loaded from params (continuing existing route)');
+                } else if (hasCoordinates) {
+                    console.log('TrackingPage: Skipping cleanup - route has saved coordinates');
+                } else {
+                    console.log('TrackingPage: No route to cleanup');
+                }
             }
         };
-    }, [foregroundPermissionGranted, backgroundPermissionGranted]);
+    }, [foregroundPermissionGranted, backgroundPermissionGranted, routeId]);
 
     // Update map view when coordinates change
     useEffect(() => {
@@ -312,8 +326,42 @@ export default function TrackingPage() {
                 timestamp: coord.timestamp
             }));
             setCoordinates(formattedCoordinates);
+
+            // Mark that we have coordinates if any were loaded
+            if (formattedCoordinates.length > 0) {
+                hasSavedCoordinates.current = true;
+            }
         } catch (error) {
             console.error('Error loading coordinates for route:', error);
+        }
+    };
+
+    const loadOrCreateRoute = async () => {
+        // If routeId is provided via URL params, load that existing route
+        if (routeId) {
+            console.log('Loading existing route with ID:', routeId, 'Name:', routeName);
+            try {
+                const routeIdNumber = parseInt(routeId, 10);
+                const route = await getRouteById(routeIdNumber);
+
+                if (route) {
+                    setCurrentRoute(route);
+                    // Load existing coordinates for this route
+                    await loadCoordinatesForRoute(routeIdNumber);
+                    console.log('Loaded existing route successfully:', route);
+                } else {
+                    console.error('Route not found with ID:', routeId);
+                    // Fallback to creating a new route
+                    await createAutoRoute();
+                }
+            } catch (error) {
+                console.error('Error loading existing route:', error);
+                // Fallback to creating a new route
+                await createAutoRoute();
+            }
+        } else {
+            // No routeId provided, create a new auto route
+            await createAutoRoute();
         }
     };
 
@@ -332,6 +380,7 @@ export default function TrackingPage() {
 
             setCurrentRoute(route);
             setCoordinates([]); // Clear coordinates for new route
+            hasSavedCoordinates.current = false; // Reset flag for new route
 
             console.log('Auto-created route successfully:', route);
         } catch (error) {
@@ -592,6 +641,9 @@ export default function TrackingPage() {
                             newCoordinate.longitude,
                             newCoordinate.timestamp
                         );
+
+                        // Mark that we've saved coordinates (prevents premature cleanup)
+                        hasSavedCoordinates.current = true;
 
                         // Update state array for UI
                         setCoordinates(prev => [...prev, newCoordinate]);
@@ -955,9 +1007,9 @@ const getStyles = (theme: any) => StyleSheet.create({
         fontWeight: '500',
     },
     coordinatesList: {
-        height: 110,
-        maxHeight: 115,
-        minHeight: 115,
+        height: 120,
+        maxHeight: 120,
+        minHeight: 120,
         marginTop: 10,
     },
     coordinateItem: {

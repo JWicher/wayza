@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     FlatList,
     Pressable,
@@ -89,9 +89,9 @@ export default function Index() {
     const [isLoadingRoutes, setIsLoadingRoutes] = useState(false);
 
     // Load routes with enhanced data
-    const loadRoutes = async (retryCount = 0) => {
-        // Prevent concurrent loadRoutes calls
-        if (isLoadingRoutes) {
+    const loadRoutes = async (retryCount = 0, forceReload = false) => {
+        // Prevent concurrent loadRoutes calls (unless forced)
+        if (isLoadingRoutes && !forceReload) {
             console.log('loadRoutes already in progress, skipping...');
             return;
         }
@@ -100,7 +100,7 @@ export default function Index() {
             setIsLoadingRoutes(true);
             setLoading(true);
 
-            console.log('Starting to load routes...');
+            console.log('Starting to load routes...', forceReload ? '(FORCED RELOAD)' : '');
             const dbRoutes = await getRoutes();
             console.log(`Retrieved ${dbRoutes.length} routes from database`);
 
@@ -166,6 +166,8 @@ export default function Index() {
             // Retry once on failure
             if (retryCount < 1) {
                 console.log('Retrying loadRoutes...');
+                // Reset the flag before retrying
+                setIsLoadingRoutes(false);
                 await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
                 return loadRoutes(retryCount + 1);
             }
@@ -210,25 +212,37 @@ export default function Index() {
         initializeApp();
     }, []);
 
-    // Reload routes when screen comes into focus (e.g., returning from settings)
-    // Skip initial focus to avoid race condition with useEffect
-    const [isInitialMount, setIsInitialMount] = useState(true);
+    // Reload routes when screen comes into focus (e.g., returning from tracking/settings)
+    // Use a ref to track if this is the first focus to avoid double-loading on mount
+    const isFirstFocus = useRef(true);
 
     useFocusEffect(
         useCallback(() => {
-            if (isInitialMount) {
-                console.log('Initial focus detected, skipping reload to avoid race condition');
-                setIsInitialMount(false);
+            const focusTime = new Date().toISOString();
+            console.log(`[${focusTime}] useFocusEffect triggered, isFirstFocus:`, isFirstFocus.current);
+
+            // Skip the first focus since useEffect already loads routes on mount
+            if (isFirstFocus.current) {
+                console.log('First focus detected, skipping reload (already loaded by useEffect)');
+                isFirstFocus.current = false;
                 return;
             }
-            console.log('Index screen focused, reloading routes...');
 
-            // Add a small delay to ensure any cleanup operations from other screens have completed
-            // This prevents race conditions with route deletions
-            setTimeout(() => {
-                loadRoutes();
-            }, 100); // Short 100ms delay - just enough to ensure cleanup completes
-        }, [isInitialMount])
+            console.log('Index screen re-focused, scheduling route reload...');
+
+            // Add a delay to ensure any database operations from other screens have completed
+            // This prevents race conditions with route creation/deletion and coordinate saves
+            const timeoutId = setTimeout(() => {
+                console.log('Executing delayed route reload with force flag...');
+                loadRoutes(0, true); // Force reload to bypass isLoadingRoutes check
+            }, 500); // 500ms delay to ensure database writes complete
+
+            // Cleanup timeout if component unmounts or loses focus
+            return () => {
+                console.log('Cleaning up focus effect timeout');
+                clearTimeout(timeoutId);
+            };
+        }, [])
     );
 
     useEffect(() => {
