@@ -156,29 +156,48 @@ export default function TrackingPage() {
             try {
                 console.log('Initializing tracking page...');
 
-                // Add safety check for permissions context
-                if (!foregroundPermissionGranted && !backgroundPermissionGranted) {
-                    console.log('Waiting for permissions to be checked...');
+                // Initialize database first (doesn't require permissions)
+                try {
+                    await initializeDatabase();
+                    console.log('Database initialized successfully');
+                } catch (dbError) {
+                    console.error('Critical: Database initialization failed:', dbError);
+                    setInitializationError('Database initialization failed. Please reinstall the app.');
+                    showThemedAlert('Database Error', 'Failed to initialize database. Please reinstall the app.', [
+                        { text: 'OK' }
+                    ], 'alert-circle-outline', '#f87171');
                     return;
                 }
 
-                await initializeDatabase();
-                console.log('Database initialized, loading settings...');
-                await loadTrackingSettings();
-                console.log('Settings loaded, creating auto route...');
-                await createAutoRoute();
-                console.log('Tracking page initialization complete');
+                // Load settings
+                try {
+                    await loadTrackingSettings();
+                    console.log('Settings loaded successfully');
+                } catch (settingsError) {
+                    console.error('Warning: Failed to load tracking settings, using defaults:', settingsError);
+                    // Continue with defaults
+                }
+
+                // Create auto route
+                try {
+                    await createAutoRoute();
+                    console.log('Tracking page initialization complete');
+                } catch (routeError) {
+                    console.error('Warning: Failed to create auto route:', routeError);
+                    // Non-critical, can be created later
+                }
+
             } catch (error) {
                 console.error('Error initializing tracking page:', error);
                 setInitializationError('Failed to initialize tracking. Please restart the app.');
-                showThemedAlert('Initialization Error', 'Failed to initialize tracking.', [
+                showThemedAlert('Initialization Error', 'Failed to initialize tracking. Please restart the app.', [
                     { text: 'OK' }
                 ], 'warning-outline', '#f59e0b');
             }
         };
 
         // Delay initialization to ensure contexts are ready
-        const timer = setTimeout(initializeTrackingPage, 500);
+        const timer = setTimeout(initializeTrackingPage, 100);
         return () => {
             clearTimeout(timer);
 
