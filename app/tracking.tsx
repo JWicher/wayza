@@ -108,9 +108,17 @@ const biskupinCoords = {
 }
 
 export default function TrackingPage() {
+    console.log('[TrackingPage] Component rendering...');
+
     const { theme, isDark } = useTheme();
+    console.log('[TrackingPage] Theme loaded:', isDark ? 'dark' : 'light');
+
     const { foregroundPermissionGranted, backgroundPermissionGranted } = usePermissions();
+    console.log('[TrackingPage] Permissions:', { foreground: foregroundPermissionGranted, background: backgroundPermissionGranted });
+
     const { routeId, routeName } = useLocalSearchParams<{ routeId?: string; routeName?: string }>();
+    console.log('[TrackingPage] URL params:', { routeId, routeName });
+
     const [isTracking, setIsTracking] = useState(false);
     const [accuracy, setAccuracy] = useState<number>();
     const [initializationError, setInitializationError] = useState<string | null>(null);
@@ -596,7 +604,9 @@ export default function TrackingPage() {
             }));
 
             // Use the background permission status from context
-            const canUseBackground = backgroundPermissionGranted;
+            // TYMCZASOWO WYŁĄCZONE - TEST CZY TO POWODUJE CRASH
+            const canUseBackground = false; // BYŁO: backgroundPermissionGranted;
+            console.log('[DEBUG] Background tracking DISABLED for testing crash');
 
             if (canUseBackground) {
                 console.log('Starting background location tracking...');
@@ -615,7 +625,7 @@ export default function TrackingPage() {
                 });
                 console.log('Background location tracking started');
             } else {
-                console.log('Background permissions not granted, using foreground tracking only');
+                console.log('Background permissions not granted, using foreground tracking only (or disabled for testing)');
             }
 
             // Also start foreground tracking for immediate UI updates
@@ -743,6 +753,8 @@ export default function TrackingPage() {
             </SafeAreaView>
         );
     }
+
+    console.log('[TrackingPage] Rendering UI...');
 
     return (
         <SafeAreaView style={getStyles(theme).container}>

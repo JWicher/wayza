@@ -11,7 +11,7 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
-# Expo modules
+# Expo modules - CRITICAL
 -keep class expo.modules.** { *; }
 -keepclassmembers class expo.modules.** { *; }
 
