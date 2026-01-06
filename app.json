@@ -57,7 +57,15 @@
                 }
             ],
             "expo-sqlite",
-            "expo-web-browser"
+            "expo-web-browser",
+            [
+                "expo-location",
+                {
+                    "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to track your trips.",
+                    "isAndroidBackgroundLocationEnabled": true,
+                    "isAndroidForegroundServiceEnabled": true
+                }
+            ]
         ],
         "experiments": {
             "typedRoutes": true,
