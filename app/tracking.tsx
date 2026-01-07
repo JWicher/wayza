@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as MapLibreGL from '@maplibre/maplibre-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as NavigationBar from 'expo-navigation-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     FlatList,
     StyleSheet,
@@ -12,10 +13,9 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DeleteConfirmationModal, EditRouteModal, showThemedAlert } from '../components/modals';
-import { darkMapStyle, lightMapStyle } from '../constants/mapStyles';
+import { MAPLIBRE_STYLE_URL_DARK, MAPLIBRE_STYLE_URL_LIGHT } from '../constants/mapStyles';
 import { usePermissions } from '../contexts/PermissionContext';
 import { useTheme } from '../contexts/ThemeContext';
 import {
@@ -29,6 +29,7 @@ import {
     RouteRecord,
     updateRoute
 } from '../lib/database';
+import { getMapLibreBounds, toLineStringFeature } from '../utils/mapLibreGeo';
 
 interface Coordinate {
     latitude: number;
@@ -125,7 +126,6 @@ export default function TrackingPage() {
 
     const [coordinates, setCoordinates] = useState<Coordinate[]>([]);
     const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null);
-    const mapRef = useRef<MapView>(null);
 
     // Current route state
     const [currentRoute, setCurrentRoute] = useState<RouteRecord | null>(null);
@@ -289,23 +289,17 @@ export default function TrackingPage() {
     }, [foregroundPermissionGranted, backgroundPermissionGranted, routeId]);
 
     // Update map view when coordinates change
-    useEffect(() => {
-        if (coordinates.length > 0 && mapRef.current) {
-            const latLngCoordinates = coordinates.map(coord => ({
-                latitude: coord.latitude,
-                longitude: coord.longitude,
-            }));
+    const centerCoordinate = useMemo(() => {
+        if (!coordinates.length) return [biskupinCoords.longitude, biskupinCoords.latitude] as [number, number];
+        const last = coordinates[coordinates.length - 1];
+        return [last.longitude, last.latitude] as [number, number];
+    }, [coordinates]);
 
-            mapRef.current.fitToCoordinates(latLngCoordinates, {
-                edgePadding: {
-                    top: 50,
-                    right: 50,
-                    bottom: 50,
-                    left: 50,
-                },
-                animated: true,
-            });
-        }
+    const bounds = useMemo(() => getMapLibreBounds(coordinates), [coordinates]);
+
+    const routeLine = useMemo(() => {
+        if (coordinates.length < 2) return null;
+        return toLineStringFeature(coordinates);
     }, [coordinates]);
 
     // Update the ref whenever currentRoute changes
@@ -881,55 +875,70 @@ export default function TrackingPage() {
             <View style={getStyles(theme).section}>
                 <Text style={getStyles(theme).sectionTitle}>Route Map</Text>
                 <View style={getStyles(theme).mapContainer}>
-                    <MapView
-                        ref={mapRef}
+                    <MapLibreGL.MapView
                         style={getStyles(theme).map}
-                        provider={PROVIDER_GOOGLE}
-                        customMapStyle={isDark ? darkMapStyle : lightMapStyle}
-                        showsUserLocation={true}
-                        showsMyLocationButton={true}
-                        zoomEnabled={true}
-                        scrollEnabled={true}
-                        initialRegion={biskupinCoords}
+                        mapStyle={isDark ? MAPLIBRE_STYLE_URL_DARK : MAPLIBRE_STYLE_URL_LIGHT}
+                        onDidFailLoadingMap={() => console.error('[MapLibre] Map load failed')}
+                        onDidFinishLoadingMap={() => console.log('[MapLibre] Map loaded successfully')}
                     >
-                        {/* Show markers for start and end if we have coordinates */}
+                        <MapLibreGL.Camera
+                            defaultSettings={{
+                                centerCoordinate,
+                                zoomLevel: 12,
+                            }}
+                            animationDuration={300}
+                            bounds={
+                                bounds
+                                    ? {
+                                        ne: bounds.ne,
+                                        sw: bounds.sw,
+                                        paddingLeft: 50,
+                                        paddingRight: 50,
+                                        paddingTop: 50,
+                                        paddingBottom: 50,
+                                    }
+                                    : undefined
+                            }
+                        />
+
+                        <MapLibreGL.UserLocation visible={true} />
+
+                        {/* Show markers for start and current if we have coordinates */}
                         {coordinates.length > 0 && (
                             <>
-                                <Marker
-                                    coordinate={{
-                                        latitude: coordinates[0].latitude,
-                                        longitude: coordinates[0].longitude,
-                                    }}
-                                    title="Start"
-                                    description="Trip start point"
-                                    pinColor="green"
-                                />
+                                <MapLibreGL.PointAnnotation
+                                    id="start"
+                                    coordinate={[coordinates[0].longitude, coordinates[0].latitude]}
+                                >
+                                    <View style={[getStyles(theme).annotationDot, getStyles(theme).startDot]} />
+                                </MapLibreGL.PointAnnotation>
+
                                 {coordinates.length > 1 && (
-                                    <Marker
-                                        coordinate={{
-                                            latitude: coordinates[coordinates.length - 1].latitude,
-                                            longitude: coordinates[coordinates.length - 1].longitude,
-                                        }}
-                                        title="Current Position"
-                                        description="Latest tracked position"
-                                        pinColor="red"
-                                    />
+                                    <MapLibreGL.PointAnnotation
+                                        id="current"
+                                        coordinate={[
+                                            coordinates[coordinates.length - 1].longitude,
+                                            coordinates[coordinates.length - 1].latitude,
+                                        ]}
+                                    >
+                                        <View style={[getStyles(theme).annotationDot, getStyles(theme).currentDot]} />
+                                    </MapLibreGL.PointAnnotation>
                                 )}
                             </>
                         )}
 
-                        {/* Show polyline for the tracked route */}
-                        {coordinates.length > 1 && (
-                            <Polyline
-                                coordinates={coordinates.map(coord => ({
-                                    latitude: coord.latitude,
-                                    longitude: coord.longitude,
-                                }))}
-                                strokeColor={isDark ? '#60a5fa' : '#3b82f6'}
-                                strokeWidth={3}
-                            />
+                        {routeLine && (
+                            <MapLibreGL.ShapeSource id="routeSource" shape={routeLine}>
+                                <MapLibreGL.LineLayer
+                                    id="routeLine"
+                                    style={{
+                                        lineColor: isDark ? '#60a5fa' : '#3b82f6',
+                                        lineWidth: 3,
+                                    }}
+                                />
+                            </MapLibreGL.ShapeSource>
                         )}
-                    </MapView>
+                    </MapLibreGL.MapView>
                 </View>
             </View>
 
@@ -1130,6 +1139,19 @@ const getStyles = (theme: any) => StyleSheet.create({
     },
     map: {
         flex: 1,
+    },
+    annotationDot: {
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        borderWidth: 2,
+        borderColor: theme.white,
+    },
+    startDot: {
+        backgroundColor: '#16a34a',
+    },
+    currentDot: {
+        backgroundColor: '#dc2626',
     },
     // Modal styles
     modalOverlay: {

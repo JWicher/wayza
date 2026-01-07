@@ -1,17 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as MapLibreGL from '@maplibre/maplibre-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { DeleteConfirmationModal, EditRouteModal, showThemedAlert } from '../components/modals';
-import { darkMapStyle, lightMapStyle } from '../constants/mapStyles';
+import { MAPLIBRE_STYLE_URL_DARK, MAPLIBRE_STYLE_URL_LIGHT } from '../constants/mapStyles';
 import { useTheme } from '../contexts/ThemeContext';
 import { CoordinateRecord, deleteRoute, getCoordinatesForRoute, getRouteById, updateRoute } from '../lib/database';
+import { getMapLibreBounds, toLineStringFeature } from '../utils/mapLibreGeo';
 
 export default function MapPage() {
     const { theme, isDark } = useTheme();
-    const map = useRef<MapView>(null);
     const { routeId, routeName } = useLocalSearchParams<{ routeId: string; routeName: string }>();
 
     // State for coordinates and loading
@@ -149,21 +149,16 @@ export default function MapPage() {
         }, [routeId])
     );
 
-    // Fit map to coordinates when they're loaded
-    useEffect(() => {
-        if (coordinates.length > 0 && map.current) {
-            setTimeout(() => {
-                map.current?.fitToCoordinates(coordinates, {
-                    edgePadding: {
-                        top: 40,
-                        right: 40,
-                        bottom: 40,
-                        left: 40,
-                    },
-                    animated: true,
-                });
-            }, 100);
-        }
+    const centerCoordinate = useMemo(() => {
+        if (!coordinates.length) return [17.734, 52.793] as [number, number]; // fallback
+        return [coordinates[0].longitude, coordinates[0].latitude] as [number, number];
+    }, [coordinates]);
+
+    const bounds = useMemo(() => getMapLibreBounds(coordinates), [coordinates]);
+
+    const routeLine = useMemo(() => {
+        if (coordinates.length < 2) return null;
+        return toLineStringFeature(coordinates);
     }, [coordinates]);
 
     if (loading) {
@@ -222,32 +217,65 @@ export default function MapPage() {
                     </View>
                 </View>
             </View>
-            <MapView
-                ref={map}
+            <MapLibreGL.MapView
                 style={getStyles(theme).map}
-                provider={PROVIDER_GOOGLE}
-                customMapStyle={isDark ? darkMapStyle : lightMapStyle}
-                showsUserLocation={false}
-                showsMyLocationButton={false}
-                zoomEnabled={true}
-                scrollEnabled={true}
+                mapStyle={isDark ? MAPLIBRE_STYLE_URL_DARK : MAPLIBRE_STYLE_URL_LIGHT}
+                onDidFailLoadingMap={() => console.error('[MapLibre] Map load failed')}
+                onDidFinishLoadingMap={() => console.log('[MapLibre] Map loaded successfully')}
             >
-                <Marker
-                    coordinate={coordinates[0]}
-                    title='Start'
-                    pinColor="green"
+                <MapLibreGL.Camera
+                    defaultSettings={{
+                        centerCoordinate,
+                        zoomLevel: 12,
+                    }}
+                    animationDuration={300}
+                    bounds={
+                        bounds
+                            ? {
+                                ne: bounds.ne,
+                                sw: bounds.sw,
+                                paddingLeft: 40,
+                                paddingRight: 40,
+                                paddingTop: 40,
+                                paddingBottom: 40,
+                            }
+                            : undefined
+                    }
                 />
-                <Marker
-                    coordinate={coordinates[coordinates.length - 1]}
-                    title='Finish'
-                    pinColor="red"
-                />
-                <Polyline
-                    strokeColor={isDark ? '#60a5fa' : '#dc2626'}
-                    strokeWidth={3}
-                    coordinates={coordinates}
-                />
-            </MapView>
+
+                {coordinates.length > 0 && (
+                    <>
+                        <MapLibreGL.PointAnnotation
+                            id="start"
+                            coordinate={[coordinates[0].longitude, coordinates[0].latitude]}
+                        >
+                            <View style={[getStyles(theme).annotationDot, getStyles(theme).startDot]} />
+                        </MapLibreGL.PointAnnotation>
+
+                        <MapLibreGL.PointAnnotation
+                            id="finish"
+                            coordinate={[
+                                coordinates[coordinates.length - 1].longitude,
+                                coordinates[coordinates.length - 1].latitude,
+                            ]}
+                        >
+                            <View style={[getStyles(theme).annotationDot, getStyles(theme).finishDot]} />
+                        </MapLibreGL.PointAnnotation>
+                    </>
+                )}
+
+                {routeLine && (
+                    <MapLibreGL.ShapeSource id="routeSource" shape={routeLine}>
+                        <MapLibreGL.LineLayer
+                            id="routeLine"
+                            style={{
+                                lineColor: isDark ? '#60a5fa' : '#dc2626',
+                                lineWidth: 3,
+                            }}
+                        />
+                    </MapLibreGL.ShapeSource>
+                )}
+            </MapLibreGL.MapView>
 
             {/* Edit Route Modal */}
             <EditRouteModal
@@ -338,6 +366,19 @@ const getStyles = (theme: any) => StyleSheet.create({
     },
     map: {
         flex: 1,
+    },
+    annotationDot: {
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        borderWidth: 2,
+        borderColor: theme.white,
+    },
+    startDot: {
+        backgroundColor: '#16a34a',
+    },
+    finishDot: {
+        backgroundColor: '#dc2626',
     },
     loadingContainer: {
         flex: 1,

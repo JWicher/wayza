@@ -196,11 +196,12 @@ function RouteComponent({ routeName }: { routeName: string }) {
 }
 ```
 
-### 4. Integration with React Native Maps
+### 4. Integration with MapLibre (React Native)
 
 ```typescript
-import MapView, { Polyline } from 'react-native-maps';
+import * as MapLibreGL from '@maplibre/maplibre-react-native';
 import { getCoordinatesForRoute } from './lib/database';
+import { MAPLIBRE_STYLE_URL_LIGHT } from './constants/mapStyles';
 
 const MapComponent = () => {
   const [routeCoordinates, setRouteCoordinates] = useState([]);
@@ -219,13 +220,23 @@ const MapComponent = () => {
   }, []);
 
   return (
-    <MapView>
-      <Polyline
-        coordinates={routeCoordinates}
-        strokeColor="#FF0000"
-        strokeWidth={3}
-      />
-    </MapView>
+    <MapLibreGL.MapView style={{ flex: 1 }} styleURL={MAPLIBRE_STYLE_URL_LIGHT}>
+      <MapLibreGL.Camera zoomLevel={12} centerCoordinate={[17.734, 52.793]} />
+
+      <MapLibreGL.ShapeSource
+        id="routeSource"
+        shape={{
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: routeCoordinates.map((c) => [c.longitude, c.latitude]),
+          },
+          properties: {},
+        }}
+      >
+        <MapLibreGL.LineLayer id="routeLine" style={{ lineColor: '#FF0000', lineWidth: 3 }} />
+      </MapLibreGL.ShapeSource>
+    </MapLibreGL.MapView>
   );
 };
 ```

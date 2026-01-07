@@ -1,5 +1,7 @@
+import * as MapLibreGL from '@maplibre/maplibre-react-native';
 import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { View, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemedAlertProvider } from '../components/modals';
@@ -61,6 +63,11 @@ function ThemedStack() {
 export default function RootLayout() {
     const systemColorScheme = useColorScheme();
     const initialBackground = systemColorScheme === 'dark' ? darkTheme.background : lightTheme.background;
+
+    // Initialize MapLibre (required even without access token)
+    useEffect(() => {
+        MapLibreGL.setAccessToken(null);
+    }, []);
 
     return (
         <SafeAreaProvider>
