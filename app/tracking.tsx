@@ -7,7 +7,6 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    FlatList,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -121,7 +120,6 @@ export default function TrackingPage() {
     console.log('[TrackingPage] URL params:', { routeId, routeName });
 
     const [isTracking, setIsTracking] = useState(false);
-    const [accuracy, setAccuracy] = useState<number>();
     const [initializationError, setInitializationError] = useState<string | null>(null);
 
     const [coordinates, setCoordinates] = useState<Coordinate[]>([]);
@@ -684,7 +682,6 @@ export default function TrackingPage() {
                             console.log('[TRACKING] UI updated, total coordinates:', updated.length);
                             return updated;
                         });
-                        setAccuracy(location.coords.accuracy || 0);
                     } catch (error) {
                         console.error('[TRACKING] ❌ ERROR saving coordinate:', error);
                     }
@@ -731,28 +728,6 @@ export default function TrackingPage() {
             console.error('Error stopping location tracking:', error);
         }
     };
-
-    const formatTimestamp = (timestamp: number) => {
-        return new Date(timestamp).toLocaleTimeString();
-    };
-
-    const getLastCoordinates = () => {
-        return coordinates.slice(-3).reverse(); // Get last 5 and reverse to show newest first
-    };
-
-    const renderCoordinateItem = ({ item, index }: { item: Coordinate; index: number }) => (
-        <View style={getStyles(theme).coordinateItem}>
-            <Text style={getStyles(theme).coordinateTime}>{formatTimestamp(item.timestamp)}</Text>
-            <Text style={getStyles(theme).coordinateText}>
-                Lat: {item.latitude.toFixed(6)}
-            </Text>
-            <Text style={getStyles(theme).coordinateText}>
-                Lng: {item.longitude.toFixed(6)}
-            </Text>
-        </View>
-    );
-
-
 
     // Show error state if initialization failed
     if (initializationError) {
@@ -837,27 +812,6 @@ export default function TrackingPage() {
                         </Text>
                     </TouchableOpacity>
 
-                </View>
-
-
-                {/* Last 3 Coordinates */}
-                <View style={getStyles(theme).coordinatesList}>
-                    <Text style={getStyles(theme).accuracyText}>
-                        Accuracy: {accuracy?.toFixed(2)} m
-                    </Text>
-                    {getLastCoordinates().length > 0 ? (
-                        <FlatList
-                            data={getLastCoordinates()}
-                            renderItem={renderCoordinateItem}
-                            keyExtractor={(item) => item.timestamp.toString()}
-                            scrollEnabled={true}
-                            showsVerticalScrollIndicator={true}
-                        />
-                    ) : (
-                        <Text style={getStyles(theme).emptyText}>
-                            No coordinates tracked yet. Start tracking to see your location data.
-                        </Text>
-                    )}
                 </View>
 
             </View>
@@ -1070,54 +1024,8 @@ const getStyles = (theme: any) => StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
     },
-    coordinatesList: {
-        height: 120,
-        maxHeight: 120,
-        minHeight: 120,
-        marginTop: 10,
-    },
-    coordinateItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: theme.surface,
-        padding: 5,
-        marginBottom: 5,
-        borderRadius: 8,
-        shadowColor: theme.shadow,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
-        gap: 20,
-    },
-
-    coordinateTime: {
-        fontSize: 16,
-        color: theme.error,
-        fontWeight: 'bold',
-    },
-    coordinateText: {
-        fontSize: 16,
-        color: theme.text,
-        marginBottom: 2,
-    },
-    accuracyText: {
-        fontSize: 12,
-        color: theme.textTertiary,
-        fontStyle: 'italic',
-    },
-    emptyText: {
-        height: '100%',
-        fontSize: 16,
-        color: theme.textSecondary,
-        textAlign: 'center',
-        padding: 20,
-        backgroundColor: theme.surface,
-        borderRadius: 8,
-    },
     mapContainer: {
-        height: "65%",
+        height: "80%",
         borderRadius: 12,
         overflow: 'hidden',
         backgroundColor: theme.surface,

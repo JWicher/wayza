@@ -1,7 +1,5 @@
-import * as MapLibreGL from '@maplibre/maplibre-react-native';
 import { Stack } from "expo-router";
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
 import { View, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemedAlertProvider } from '../components/modals';
@@ -65,9 +63,10 @@ export default function RootLayout() {
     const initialBackground = systemColorScheme === 'dark' ? darkTheme.background : lightTheme.background;
 
     // Initialize MapLibre (required even without access token)
-    useEffect(() => {
-        MapLibreGL.setAccessToken(null);
-    }, []);
+    // remove by my on 2026-01-10 - it's not needed anymore
+    // useEffect(() => {
+    //     MapLibreGL.setAccessToken(null);
+    // }, []);
 
     return (
         <SafeAreaProvider>
