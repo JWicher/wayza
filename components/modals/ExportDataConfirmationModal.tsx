@@ -65,7 +65,6 @@ export const ExportDataConfirmationModal: React.FC<ExportDataConfirmationModalPr
                         <TouchableOpacity
                             style={[
                                 styles.button,
-                                styles.cancelButton,
                                 { backgroundColor: theme.textTertiary + '20' }
                             ]}
                             onPress={onClose}
@@ -78,7 +77,6 @@ export const ExportDataConfirmationModal: React.FC<ExportDataConfirmationModalPr
                         <TouchableOpacity
                             style={[
                                 styles.button,
-                                styles.saveButton,
                                 { backgroundColor: theme.primary }
                             ]}
                             onPress={onConfirm}
@@ -140,12 +138,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 8,
         alignItems: 'center',
-    },
-    cancelButton: {
-        // backgroundColor set dynamically
-    },
-    saveButton: {
-        // backgroundColor set dynamically
     },
     cancelButtonText: {
         fontSize: 16,

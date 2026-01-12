@@ -36,7 +36,7 @@ export default function MapPage() {
     // Continue route function
     const handleContinueRoute = () => {
         if (!routeId) return;
-        console.log('Continue tracking route:', currentRouteName || routeName);
+
         router.push(`/tracking?routeId=${routeId}&routeName=${encodeURIComponent(currentRouteName || routeName || '')}`);
     };
 

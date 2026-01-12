@@ -62,12 +62,6 @@ export default function RootLayout() {
     const systemColorScheme = useColorScheme();
     const initialBackground = systemColorScheme === 'dark' ? darkTheme.background : lightTheme.background;
 
-    // Initialize MapLibre (required even without access token)
-    // remove by my on 2026-01-10 - it's not needed anymore
-    // useEffect(() => {
-    //     MapLibreGL.setAccessToken(null);
-    // }, []);
-
     return (
         <SafeAreaProvider>
             <View style={{ flex: 1, backgroundColor: initialBackground }}>

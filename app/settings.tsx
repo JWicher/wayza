@@ -29,7 +29,6 @@ import { clearAllData, exportAllRoutesData, getTrackingSettings, setTrackingSett
 
 export default function SettingsPage() {
     const { theme, isDark, setTheme } = useTheme();
-    const [locationTracking, setLocationTracking] = useState(true);
 
     // Tracking interval settings
     const [trackingIntervalSeconds, setTrackingIntervalSeconds] = useState(5);
@@ -68,9 +67,7 @@ export default function SettingsPage() {
     const confirmClearData = async () => {
         setShowClearDataModal(false);
         try {
-            console.log('Starting to clear all data...');
             const result = await clearAllData();
-            console.log('Data cleared:', result);
 
             const totalCleared = result.coordinatesDeleted + result.routesDeleted;
 
@@ -103,9 +100,7 @@ export default function SettingsPage() {
         setShowExportModal(false);
         try {
             // Get all route data
-            console.log('Starting export process...');
             const routesData = await exportAllRoutesData();
-            console.log('Routes data retrieved:', routesData.length, 'routes');
 
             if (routesData.length === 0) {
                 showThemedAlert('No Data', 'No routes found to export.', [

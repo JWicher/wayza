@@ -92,7 +92,7 @@ export default function Index() {
     const loadRoutes = async (retryCount = 0, forceReload = false) => {
         // Prevent concurrent loadRoutes calls (unless forced)
         if (isLoadingRoutes && !forceReload) {
-            console.log('loadRoutes already in progress, skipping...');
+
             return;
         }
 
@@ -100,15 +100,11 @@ export default function Index() {
             setIsLoadingRoutes(true);
             setLoading(true);
 
-            console.log('Starting to load routes...', forceReload ? '(FORCED RELOAD)' : '');
             const dbRoutes = await getRoutes();
-            console.log(`Retrieved ${dbRoutes.length} routes from database`);
 
             // If no routes found, set empty array and finish
             if (!dbRoutes || dbRoutes.length === 0) {
-                console.log('No routes found in database');
                 setRoutes([]);
-                console.log('Setting loading to false - no routes found');
                 setLoading(false);
                 setIsLoadingRoutes(false);
                 return;
@@ -121,7 +117,6 @@ export default function Index() {
                 try {
                     // Validate route has valid ID
                     if (!route.id || typeof route.id !== 'number') {
-                        console.warn(`Skipping route with invalid ID:`, route);
                         continue;
                     }
 
@@ -138,13 +133,11 @@ export default function Index() {
                     };
 
                     enhancedRoutes.push(enhancedRoute);
-                    console.log(`Processed route: ${enhancedRoute.name} (${enhancedRoute.coordinateCount} points)`);
                 } catch (routeError) {
                     console.error(`Error processing route ${route.name} (ID: ${route.id}):`, routeError);
 
                     // Skip routes that fail to load (likely deleted routes) instead of showing them with error state
                     // This prevents deleted routes from briefly appearing in the list
-                    console.log(`Skipping route ${route.name} (ID: ${route.id}) due to load error - likely deleted`);
                     continue;
                 }
             }
@@ -157,15 +150,12 @@ export default function Index() {
                 return new Date(b.date).getTime() - new Date(a.date).getTime();
             });
 
-            console.log(`Successfully loaded ${enhancedRoutes.length} routes`);
             setRoutes(enhancedRoutes);
-            console.log('Setting loading to false after successful route load');
         } catch (error) {
             console.error('Error loading routes (attempt', retryCount + 1, '):', error);
 
             // Retry once on failure
             if (retryCount < 1) {
-                console.log('Retrying loadRoutes...');
                 // Reset the flag before retrying
                 setIsLoadingRoutes(false);
                 await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
@@ -182,7 +172,6 @@ export default function Index() {
                 '#f87171'
             );
         } finally {
-            console.log('Setting loading to false in finally block');
             setLoading(false);
             setIsLoadingRoutes(false);
         }
@@ -193,7 +182,6 @@ export default function Index() {
         const initializeApp = async () => {
             try {
                 await initializeDatabase();
-                console.log('Database initialized successfully from index');
                 await loadRoutes();
             } catch (error) {
                 console.error('Error initializing database:', error);
@@ -202,7 +190,6 @@ export default function Index() {
                 ], 'warning-outline', '#f59e0b');
 
                 // Reset loading states so UI shows "No routes yet" instead of staying on "Loading..."
-                console.log('Setting loading to false due to database initialization error');
                 setLoading(false);
                 setIsLoadingRoutes(false);
                 setRoutes([]);
@@ -218,35 +205,26 @@ export default function Index() {
 
     useFocusEffect(
         useCallback(() => {
-            const focusTime = new Date().toISOString();
-            console.log(`[${focusTime}] useFocusEffect triggered, isFirstFocus:`, isFirstFocus.current);
-
             // Skip the first focus since useEffect already loads routes on mount
             if (isFirstFocus.current) {
-                console.log('First focus detected, skipping reload (already loaded by useEffect)');
                 isFirstFocus.current = false;
                 return;
             }
 
-            console.log('Index screen re-focused, scheduling route reload...');
-
             // Add a delay to ensure any database operations from other screens have completed
             // This prevents race conditions with route creation/deletion and coordinate saves
             const timeoutId = setTimeout(() => {
-                console.log('Executing delayed route reload with force flag...');
                 loadRoutes(0, true); // Force reload to bypass isLoadingRoutes check
             }, 500); // 500ms delay to ensure database writes complete
 
             // Cleanup timeout if component unmounts or loses focus
             return () => {
-                console.log('Cleaning up focus effect timeout');
                 clearTimeout(timeoutId);
             };
         }, [])
     );
 
     useEffect(() => {
-
         if (deleteModalVisible) {
             NavigationBar.setVisibilityAsync("hidden");
         } else {
@@ -263,7 +241,6 @@ export default function Index() {
     };
 
     const handleLongPress = (route: DisplayRoute) => {
-        console.log('Long press detected for route:', route.name);
         setRouteToDelete(route);
         setDeleteModalVisible(true);
         NavigationBar.setVisibilityAsync("hidden");
@@ -276,7 +253,6 @@ export default function Index() {
         try {
             setLoading(true);
             await deleteRoute(routeToDelete.id);
-            console.log(`Deleted route: ${routeToDelete.name}`);
 
             // Close modal and clear selection
             setDeleteModalVisible(false);
@@ -310,7 +286,6 @@ export default function Index() {
             }}
             onLongPress={() => handleLongPress(item)}
             delayLongPress={300}
-            onPressIn={() => console.log('Press started on route:', item.name)}
         >
             <View style={getStyles(theme).routeHeader}>
                 <Text style={getStyles(theme).routeName}>{item.name}</Text>

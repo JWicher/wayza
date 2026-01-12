@@ -59,7 +59,6 @@ const defineBackgroundLocationTask = () => {
 
             if (data) {
                 const { locations }: any = data;
-                console.log('Received background location update:', locations.length, 'locations');
 
                 // Handle background location data
                 for (const location of locations) {
@@ -85,7 +84,6 @@ const defineBackgroundLocationTask = () => {
                                 location.timestamp || Date.now()
                             );
 
-                            console.log('Background location saved for route:', routeInfo.id);
                         }
                     } catch (err) {
                         console.error('Error processing background location:', err);
@@ -94,7 +92,6 @@ const defineBackgroundLocationTask = () => {
             }
         });
         isTaskDefined = true;
-        console.log('Background task defined successfully');
     } catch (error) {
         console.error('Error defining background task:', error);
     }
@@ -108,16 +105,12 @@ const biskupinCoords = {
 }
 
 export default function TrackingPage() {
-    console.log('[TrackingPage] Component rendering...');
 
     const { theme, isDark } = useTheme();
-    console.log('[TrackingPage] Theme loaded:', isDark ? 'dark' : 'light');
 
     const { foregroundPermissionGranted, backgroundPermissionGranted } = usePermissions();
-    console.log('[TrackingPage] Permissions:', { foreground: foregroundPermissionGranted, background: backgroundPermissionGranted });
 
     const { routeId, routeName } = useLocalSearchParams<{ routeId?: string; routeName?: string }>();
-    console.log('[TrackingPage] URL params:', { routeId, routeName });
 
     const [isTracking, setIsTracking] = useState(false);
     const [initializationError, setInitializationError] = useState<string | null>(null);
@@ -154,7 +147,6 @@ export default function TrackingPage() {
             const settings = await getTrackingSettings();
             setTrackingIntervalSeconds(settings.intervalSeconds);
             setTrackingIntervalM(settings.intervalM);
-            console.log(`Loaded tracking settings: ${settings.intervalSeconds}s, ${settings.intervalM}m`);
         } catch (error) {
             console.error('Error loading tracking settings:', error);
             // Keep default values if loading fails
@@ -165,8 +157,6 @@ export default function TrackingPage() {
     useEffect(() => {
         const initializeTrackingPage = async () => {
             try {
-                console.log('Initializing tracking page...');
-
                 // Initialize database first (doesn't require permissions)
                 try {
                     await initializeDatabase();
@@ -183,7 +173,6 @@ export default function TrackingPage() {
                 // Load settings
                 try {
                     await loadTrackingSettings();
-                    console.log('Settings loaded successfully');
                 } catch (settingsError) {
                     console.error('Warning: Failed to load tracking settings, using defaults:', settingsError);
                     // Continue with defaults
@@ -192,7 +181,6 @@ export default function TrackingPage() {
                 // Load existing route or create auto route
                 try {
                     await loadOrCreateRoute();
-                    console.log('Tracking page initialization complete');
                 } catch (routeError) {
                     console.error('Warning: Failed to load/create route:', routeError);
                     // Non-critical, can be created later
@@ -212,8 +200,6 @@ export default function TrackingPage() {
         return () => {
             clearTimeout(timer);
 
-            console.log('TrackingPage: Component unmounting, running cleanup...');
-
             // Stop location tracking
             if (locationSubscription) {
                 locationSubscription.remove();
@@ -226,7 +212,6 @@ export default function TrackingPage() {
                     const isBackgroundTaskRunning = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
                     if (isBackgroundTaskRunning) {
                         await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-                        console.log('TrackingPage: Background location tracking stopped');
                     }
                     await AsyncStorage.removeItem('currentTrackingRoute');
                 } catch (error) {
@@ -237,51 +222,27 @@ export default function TrackingPage() {
 
             // Cleanup unused route only if it was auto-created and never used
             // Don't cleanup routes that were loaded from URL params (continuing existing routes)
-            console.log('[CLEANUP] Starting cleanup check...');
 
             const route = currentRouteRef.current;
             const hasCoordinates = hasSavedCoordinates.current;
-
-            console.log('[CLEANUP] Route:', route?.id, route?.name);
-            console.log('[CLEANUP] Has coordinates flag:', hasCoordinates);
-            console.log('[CLEANUP] From URL params:', !!routeId);
 
             // ZMIENIONE: Bardziej ostrożny cleanup - czekamy dłużej przed usunięciem
             // Only cleanup if this was NOT a route loaded from URL params AND we haven't saved any coordinates
             // I TYLKO jeśli tracking NIE był aktywny (nie usuwaj jeśli user startował tracking)
             if (route?.id && !routeId && !hasCoordinates && !isTracking) {
-                console.log('[CLEANUP] Checking if route should be deleted...');
-
                 // Dodatkowe opóźnienie - daj szansę na zapisanie pierwszej współrzędnej
                 setTimeout(() => {
                     // Double-check database to be safe
                     getCoordinatesForRoute(route.id!)
                         .then(coordinates => {
-                            console.log('[CLEANUP] Database check: found', coordinates.length, 'coordinates');
                             if (coordinates.length === 0 && route.id) {
-                                console.log('[CLEANUP] ⚠️ Deleting empty route:', route.name);
                                 return deleteRoute(route.id);
-                            } else {
-                                console.log('[CLEANUP] ✓ Keeping route with', coordinates.length, 'coordinates');
                             }
-                        })
-                        .then(() => {
-                            console.log('[CLEANUP] Cleanup completed');
                         })
                         .catch(error => {
                             console.error('[CLEANUP] ❌ Error during cleanup:', error);
                         });
                 }, 2000); // 2 second delay to allow first coordinate to save
-            } else {
-                if (routeId) {
-                    console.log('[CLEANUP] ✓ Skipping - route from URL params');
-                } else if (hasCoordinates) {
-                    console.log('[CLEANUP] ✓ Skipping - has saved coordinates');
-                } else if (isTracking) {
-                    console.log('[CLEANUP] ✓ Skipping - tracking is active, don\'t delete!');
-                } else {
-                    console.log('[CLEANUP] ℹ️ No route to cleanup');
-                }
             }
         };
     }, [foregroundPermissionGranted, backgroundPermissionGranted, routeId]);
@@ -327,8 +288,6 @@ export default function TrackingPage() {
         return () => clearInterval(intervalId);
     }, [isTracking, currentRoute?.id]);
 
-
-
     const loadCoordinatesForRoute = async (routeId: number) => {
         try {
             const dbCoordinates = await getCoordinatesForRoute(routeId);
@@ -351,7 +310,6 @@ export default function TrackingPage() {
     const loadOrCreateRoute = async () => {
         // If routeId is provided via URL params, load that existing route
         if (routeId) {
-            console.log('Loading existing route with ID:', routeId, 'Name:', routeName);
             try {
                 const routeIdNumber = parseInt(routeId, 10);
                 const route = await getRouteById(routeIdNumber);
@@ -360,7 +318,6 @@ export default function TrackingPage() {
                     setCurrentRoute(route);
                     // Load existing coordinates for this route
                     await loadCoordinatesForRoute(routeIdNumber);
-                    console.log('Loaded existing route successfully:', route);
                 } else {
                     console.error('Route not found with ID:', routeId);
                     // Fallback to creating a new route
@@ -378,7 +335,6 @@ export default function TrackingPage() {
     };
 
     const createAutoRoute = async () => {
-        console.log('Creating auto route...');
         try {
             // Generate a unique name with timestamp
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -386,58 +342,26 @@ export default function TrackingPage() {
             const time = timestamp.split('T')[1].substring(0, 8).replace(/-/g, ':');
 
             const autoRouteName = `${date} ${time}`;
-            console.log('Auto route name:', autoRouteName);
 
             const route = await createRoute(autoRouteName);
 
             setCurrentRoute(route);
             setCoordinates([]); // Clear coordinates for new route
             hasSavedCoordinates.current = false; // Reset flag for new route
-
-            console.log('Auto-created route successfully:', route);
         } catch (error) {
             console.error('Error creating auto route:', error);
             // Don't show alert for auto-creation failure, just log it
         }
     };
 
-    const cleanupUnusedRoute = async () => {
-        // Delete the current route if it has no coordinates
-        // Use ref to get the current value instead of closure-captured value
-        const route = currentRouteRef.current;
-        console.log('cleanupUnusedRoute: Checking route for cleanup:', route?.id, route?.name);
-
-        if (route?.id) {
-            try {
-                const routeCoordinates = await getCoordinatesForRoute(route.id);
-                console.log('cleanupUnusedRoute: Route has', routeCoordinates.length, 'coordinates');
-                if (routeCoordinates.length === 0) {
-                    console.log('cleanupUnusedRoute: Deleting unused route:', route.name, '(ID:', route.id, ')');
-                    await deleteRoute(route.id);
-                    console.log('cleanupUnusedRoute: Successfully deleted unused route');
-                    setCurrentRoute(null);
-                    setCoordinates([]);
-                } else {
-                    console.log('cleanupUnusedRoute: Route has coordinates, keeping it');
-                }
-            } catch (error) {
-                console.error('cleanupUnusedRoute: Error cleaning up unused route:', error);
-            }
-        } else {
-            console.log('cleanupUnusedRoute: No route to cleanup');
-        }
-    };
-
     const openEditModal = async () => {
         NavigationBar.setVisibilityAsync("hidden");
-        console.log('Edit button clicked, currentRoute:', currentRoute);
 
         let routeToEdit = currentRoute;
 
         // Create a new route if one doesn't exist
         if (!routeToEdit) {
             try {
-                console.log('No current route, creating new route for editing...');
                 // Generate a unique name with timestamp
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                 const date = timestamp.split('T')[0];
@@ -448,7 +372,6 @@ export default function TrackingPage() {
                 setCurrentRoute(newRoute);
                 setCoordinates([]);
                 routeToEdit = newRoute;
-                console.log('Created new route for editing:', newRoute);
             } catch (error) {
                 console.error('Error creating route for editing:', error);
                 showThemedAlert('Route Creation Failed', 'Unable to create a new route.', [
@@ -545,10 +468,6 @@ export default function TrackingPage() {
         }, [])
     );
 
-
-
-
-
     const startTracking = async () => {
         // Check if foreground permissions are granted
         if (!foregroundPermissionGranted) {
@@ -569,7 +488,6 @@ export default function TrackingPage() {
         // Create a new route if one doesn't exist
         if (!routeToUse) {
             try {
-                console.log('No current route, creating new route for tracking...');
                 // Generate a unique name with timestamp
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                 const date = timestamp.split('T')[0];
@@ -580,7 +498,6 @@ export default function TrackingPage() {
                 setCurrentRoute(newRoute);
                 setCoordinates([]);
                 routeToUse = newRoute;
-                console.log('Created new route for tracking:', newRoute);
             } catch (error) {
                 console.error('Error creating route for tracking:', error);
                 showThemedAlert('Route Creation Failed', 'Unable to create a new route for tracking.', [
@@ -597,10 +514,6 @@ export default function TrackingPage() {
             return;
         }
 
-        console.log('[TRACKING] ========== STARTING TRACKING ==========');
-        console.log('[TRACKING] Route ID:', routeToUse.id);
-        console.log('[TRACKING] Route Name:', routeToUse.name);
-
         setIsTracking(true);
         setHasEverStartedTracking(true);
 
@@ -610,16 +523,11 @@ export default function TrackingPage() {
                 id: routeToUse.id,
                 name: routeToUse.name
             }));
-            console.log('[TRACKING] Route info saved to AsyncStorage');
 
             // Use the background permission status from context
             const canUseBackground = backgroundPermissionGranted;
-            console.log('[TRACKING] Background tracking enabled:', canUseBackground);
-            console.log('[TRACKING] Background permission granted:', backgroundPermissionGranted);
 
             if (canUseBackground) {
-                console.log('Starting background location tracking...');
-
                 // Start background location tracking
                 await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
                     accuracy: Location.Accuracy.High,
@@ -635,18 +543,7 @@ export default function TrackingPage() {
                         notificationColor: '#0ea5e9',
                     },
                 });
-                console.log('Background location tracking started');
-            } else {
-                console.log('[TRACKING] Background permissions not granted, using foreground tracking only');
             }
-
-            // Also start foreground tracking for immediate UI updates
-            console.log('[TRACKING] Starting foreground location tracking...');
-            console.log('[TRACKING] Config:', {
-                accuracy: 'High',
-                timeInterval: trackingIntervalSeconds * 1000,
-                distanceInterval: trackingIntervalM
-            });
 
             const subscription = await Location.watchPositionAsync(
                 {
@@ -660,28 +557,23 @@ export default function TrackingPage() {
                         longitude: location.coords.longitude,
                         timestamp: Date.now(),
                     };
-                    console.log('[TRACKING] ✓ New coordinate received:', newCoordinate);
-                    console.log('[TRACKING] Accuracy:', location.coords.accuracy, 'm');
 
                     try {
                         // Save to database
-                        console.log('[TRACKING] Saving to database, route ID:', routeToUse.id);
                         await addCoordinateRecord(
                             routeToUse.id!,
                             newCoordinate.latitude,
                             newCoordinate.longitude,
                             newCoordinate.timestamp
                         );
-                        console.log('[TRACKING] ✓ Saved to database successfully!');
 
                         // Mark that we've saved coordinates (prevents premature cleanup)
                         hasSavedCoordinates.current = true;
-                        console.log('[TRACKING] hasSavedCoordinates flag set to true');
 
                         // Update state array for UI
                         setCoordinates(prev => {
                             const updated = [...prev, newCoordinate];
-                            console.log('[TRACKING] UI updated, total coordinates:', updated.length);
+
                             return updated;
                         });
                     } catch (error) {
@@ -691,9 +583,6 @@ export default function TrackingPage() {
             );
 
             setLocationSubscription(subscription);
-            console.log('[TRACKING] ✓ Foreground tracking started successfully!');
-            console.log('[TRACKING] Subscription active:', !!subscription);
-            console.log('[TRACKING] ========== TRACKING IS ACTIVE ==========');
         } catch (error) {
             console.error('[TRACKING] ❌ ERROR starting location tracking:', error);
             setIsTracking(false);
@@ -721,7 +610,6 @@ export default function TrackingPage() {
             const isBackgroundTaskRunning = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
             if (isBackgroundTaskRunning) {
                 await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-                console.log('Background location tracking stopped');
             }
 
             // Clear the route information from AsyncStorage
@@ -768,15 +656,10 @@ export default function TrackingPage() {
         );
     }
 
-    console.log('[TrackingPage] Rendering UI...');
-
     return (
         <SafeAreaView style={getStyles(theme).container}>
 
-            {/* First Section - Route Management and Tracking Controls */}
-
             <View style={getStyles(theme).buttonContainer}>
-
                 {/* Tracking Button */}
                 <TouchableOpacity
                     style={[
@@ -818,7 +701,6 @@ export default function TrackingPage() {
 
             {/* Second Section - Map View */}
             <View style={getStyles(theme).section}>
-                {/* <Text style={getStyles(theme).sectionTitle}>Route Map</Text> */}
                 <View style={getStyles(theme).mapContainer}>
                     <MapLibreGL.MapView
                         style={getStyles(theme).map}
@@ -973,7 +855,6 @@ const getStyles = (theme: any) => StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
     },
-    // Route management styles
     editButton: {
         backgroundColor: theme.background,
         borderColor: theme.secondary,

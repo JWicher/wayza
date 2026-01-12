@@ -110,7 +110,6 @@ export const TrackingSettingsModal: React.FC<TrackingSettingsModalProps> = ({
                         <TouchableOpacity
                             style={[
                                 styles.modalButton,
-                                styles.cancelButton,
                                 { backgroundColor: theme.textTertiary + '20' }
                             ]}
                             onPress={onClose}
@@ -123,7 +122,6 @@ export const TrackingSettingsModal: React.FC<TrackingSettingsModalProps> = ({
                         <TouchableOpacity
                             style={[
                                 styles.modalButton,
-                                styles.saveButton,
                                 { backgroundColor: theme.primary }
                             ]}
                             onPress={onSave}
@@ -194,12 +192,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 8,
         alignItems: 'center',
-    },
-    cancelButton: {
-        // backgroundColor set dynamically
-    },
-    saveButton: {
-        // backgroundColor set dynamically
     },
     cancelButtonText: {
         fontSize: 16,

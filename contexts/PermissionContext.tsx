@@ -32,10 +32,6 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({
             setForegroundPermissionGranted(foregroundStatus === "granted");
             setBackgroundPermissionGranted(backgroundStatus === "granted");
 
-            console.log("Existing permissions:", {
-                foreground: foregroundStatus,
-                background: backgroundStatus,
-            });
         } catch (error) {
             console.error("Error checking existing permissions:", error);
         }
@@ -81,11 +77,6 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({
                 // Don't return false here - foreground tracking can still work
             }
 
-            console.log("Permission request results:", {
-                foreground: foregroundStatus,
-                background: backgroundStatus,
-            });
-
             setIsCheckingPermissions(false);
             return foregroundStatus === "granted";
         } catch (error) {
@@ -98,18 +89,15 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({
     // Check existing permissions on app startup
     useEffect(() => {
         const initializePermissions = async () => {
-            console.log("Initializing permission checks...");
             await checkExistingPermissions();
 
             // If permissions are not granted, request them
             const { status: foregroundStatus } =
                 await Location.getForegroundPermissionsAsync();
             if (foregroundStatus !== "granted") {
-                console.log("Permissions not granted, requesting...");
                 await requestLocationPermissions();
             } else {
                 setIsCheckingPermissions(false);
-                console.log("Permissions already granted");
             }
         };
 
