@@ -1,50 +1,115 @@
-# Welcome to your Expo app 👋
+# Wayza - Location Tracking App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Wayza is a mobile location tracking application that allows you to record and visualize your routes in real-time. Track your walks, runs, bike rides, or any journey and view them on an interactive map.
 
-## Get started
+## Features
 
-1. Install dependencies
+### 📍 Real-Time Location Tracking
+- **Background tracking**: Continue recording your location even when the app is in the background
+- **Customizable intervals**: Configure tracking frequency (time-based and distance-based)
+- **High accuracy**: Uses GPS for precise location recording
+- **Battery efficient**: Optimized tracking settings to balance accuracy and battery life
 
-   ```bash
-   npm install
-   ```
+### 🗺️ Interactive Map Visualization
+- **Route display**: View your recorded routes on an interactive map
+- **Multiple map styles**: Switch between light and dark map themes
+- **Route statistics**: See distance, duration, and coordinate count for each route
+- **Auto-fit bounds**: Automatically zoom to show your entire route
 
-2. Start the app
+### 📊 Route Management
+- **Create routes**: Start new tracking sessions with custom names
+- **Edit routes**: Rename your routes anytime
+- **Delete routes**: Remove unwanted routes with confirmation
+- **Continue routes**: Resume tracking on existing routes
+- **Route list**: Browse all your saved routes with details
 
-   ```bash
-   npx expo start
-   ```
+### 💾 Data Management
+- **Local storage**: All data stored locally using SQLite database
+- **Export data**: Export your routes and coordinates for backup or analysis
+- **Import data**: Restore previously exported data
+- **Clear data**: Remove all tracking data when needed
 
-In the output, you'll find options to open the app in a
+### 🎨 User Experience
+- **Dark mode**: Full dark mode support with automatic theme switching
+- **Modern UI**: Clean, intuitive interface with smooth animations
+- **Haptic feedback**: Tactile responses for better interaction
+- **Permission handling**: Clear permission requests with explanatory dialogs
+- **Error handling**: Graceful error handling with user-friendly messages
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### ⚙️ Customizable Settings
+- **Tracking intervals**: Adjust time-based tracking (1-60 seconds)
+- **Distance threshold**: Set minimum distance between points (1-100 meters)
+- **Theme preferences**: Choose between light, dark, or system theme
+- **Data management**: Easy access to export, import, and clear functions
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Technology Stack
 
-## Get a fresh project
+- **React Native**: Cross-platform mobile development
+- **MapLibre**: Open-source map rendering
+- **SQLite**: Local database for coordinate storage
+- **Expo**: Development and build tooling
+- **TypeScript**: Type-safe code
 
-When you're ready, run:
+## Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher)
+- npm or yarn
+- Android Studio (for Android) or Xcode (for iOS)
+
+### Installation
+
+1. Install dependencies:
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Run on Android:
 
-## Learn more
+```bash
+npm run android
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Run on iOS:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm run ios
+```
 
-## Join the community
+## Permissions
 
-Join our community of developers creating universal apps.
+The app requires the following permissions:
+- **Location (Always)**: To track your location in the background
+- **Location (When In Use)**: To track your location when the app is open
+- **Foreground Service**: To maintain tracking while the app is in the background (Android)
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Project Structure
+
+```
+├── app/                    # Main application screens
+│   ├── index.tsx          # Home screen with route list
+│   ├── tracking.tsx       # Active tracking screen
+│   ├── map.tsx           # Route visualization screen
+│   └── settings.tsx      # Settings and preferences
+├── components/            # Reusable components
+│   └── modals/           # Modal dialogs
+├── lib/                  # Core functionality
+│   └── database.ts       # SQLite database operations
+├── contexts/             # React contexts
+│   ├── ThemeContext.tsx  # Theme management
+│   └── PermissionContext.tsx  # Permission handling
+├── utils/                # Utility functions
+└── constants/            # App constants and styles
+```
+
+## Database Schema
+
+The app uses SQLite to store:
+- **Routes**: Route metadata (name, creation date, last updated)
+- **Coordinates**: GPS coordinates with timestamps
+- **Settings**: User preferences and tracking configuration
+
+## License
+
+This project is private and proprietary.
