@@ -613,10 +613,9 @@ export default function TrackingPage() {
             console.log('[TRACKING] Route info saved to AsyncStorage');
 
             // Use the background permission status from context
-            // TYMCZASOWO WYŁĄCZONE - TEST CZY TO POWODUJE CRASH
-            const canUseBackground = false; // BYŁO: backgroundPermissionGranted;
-            console.log('[TRACKING] Background tracking DISABLED for testing');
-            console.log('[TRACKING] Will use FOREGROUND tracking only');
+            const canUseBackground = backgroundPermissionGranted;
+            console.log('[TRACKING] Background tracking enabled:', canUseBackground);
+            console.log('[TRACKING] Background permission granted:', backgroundPermissionGranted);
 
             if (canUseBackground) {
                 console.log('Starting background location tracking...');
@@ -626,11 +625,14 @@ export default function TrackingPage() {
                     accuracy: Location.Accuracy.High,
                     timeInterval: trackingIntervalSeconds * 1000,
                     distanceInterval: trackingIntervalM,
-                    deferredUpdatesInterval: 1000, // Batch updates every second
+                    // Don't defer updates - process them immediately for better reliability
                     showsBackgroundLocationIndicator: true, // iOS only
+                    pausesUpdatesAutomatically: false, // Keep tracking even when stationary
+                    activityType: Location.ActivityType.AutomotiveNavigation, // Optimize for navigation
                     foregroundService: {
                         notificationTitle: 'Where I Was',
                         notificationBody: 'Tracking your location in the background',
+                        notificationColor: '#0ea5e9',
                     },
                 });
                 console.log('Background location tracking started');
@@ -772,53 +774,51 @@ export default function TrackingPage() {
         <SafeAreaView style={getStyles(theme).container}>
 
             {/* First Section - Route Management and Tracking Controls */}
-            <View style={getStyles(theme).section}>
 
-                <View style={getStyles(theme).buttonContainer}>
+            <View style={getStyles(theme).buttonContainer}>
 
-                    {/* Tracking Button */}
-                    <TouchableOpacity
-                        style={[
-                            getStyles(theme).button,
-                            isTracking ? getStyles(theme).stopButton : getStyles(theme).startButton,
-                        ]}
-                        onPress={isTracking ? stopTracking : startTracking}
-                    >
-                        <Ionicons
-                            name={isTracking ? "stop-circle" : "play-circle"}
-                            size={24}
-                            color="white"
-                        />
-                        <Text style={getStyles(theme).buttonText}>
-                            {isTracking ? 'Stop Tracking' : 'Start Tracking'}
-                        </Text>
-                    </TouchableOpacity>
+                {/* Tracking Button */}
+                <TouchableOpacity
+                    style={[
+                        getStyles(theme).button,
+                        isTracking ? getStyles(theme).stopButton : getStyles(theme).startButton,
+                    ]}
+                    onPress={isTracking ? stopTracking : startTracking}
+                >
+                    <Ionicons
+                        name={isTracking ? "stop-circle" : "play-circle"}
+                        size={24}
+                        color="white"
+                    />
+                    <Text style={getStyles(theme).buttonText}>
+                        {isTracking ? 'STOP' : 'START'}
+                    </Text>
+                </TouchableOpacity>
 
-                    {/* Route Edit Button */}
-                    <TouchableOpacity
-                        style={[
-                            getStyles(theme).button,
-                            getStyles(theme).editButton,
-                        ]}
-                        onPress={openEditModal}
-                    >
-                        <Ionicons
-                            name="create-outline"
-                            size={20}
-                            color={theme.secondary}
-                        />
-                        <Text style={getStyles(theme).editButtonText}>
-                            {!currentRoute ? 'Loading...' : 'Edit'}
-                        </Text>
-                    </TouchableOpacity>
-
-                </View>
+                {/* Route Edit Button */}
+                <TouchableOpacity
+                    style={[
+                        getStyles(theme).button,
+                        getStyles(theme).editButton,
+                    ]}
+                    onPress={openEditModal}
+                >
+                    <Ionicons
+                        name="create-outline"
+                        size={20}
+                        color={theme.secondary}
+                    />
+                    <Text style={getStyles(theme).editButtonText}>
+                        {!currentRoute ? 'LOADING...' : 'EDIT'}
+                    </Text>
+                </TouchableOpacity>
 
             </View>
 
+
             {/* Second Section - Map View */}
             <View style={getStyles(theme).section}>
-                <Text style={getStyles(theme).sectionTitle}>Route Map</Text>
+                {/* <Text style={getStyles(theme).sectionTitle}>Route Map</Text> */}
                 <View style={getStyles(theme).mapContainer}>
                     <MapLibreGL.MapView
                         style={getStyles(theme).map}
@@ -917,18 +917,21 @@ export default function TrackingPage() {
 const getStyles = (theme: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.background,
-    },
-
-    section: {
-        margin: 20,
-        marginBottom: 0,
     },
     buttonContainer: {
+        marginHorizontal: 15,
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'space-around',
         alignItems: 'center',
-        marginBottom: 10,
+    },
+    section: {
+        marginHorizontal: 15,
+        marginTop: 20,
+        marginBottom: 0,
+        flex: 1,
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderRadius: 10,
     },
     sectionTitle: {
         fontSize: 24,
@@ -1000,7 +1003,7 @@ const getStyles = (theme: any) => StyleSheet.create({
         fontWeight: '500',
     },
     routeInfoContainer: {
-        marginBottom: 15,
+        marginBottom: 5,
     },
     routeDisplayContainer: {
         backgroundColor: theme.surface,
@@ -1025,7 +1028,7 @@ const getStyles = (theme: any) => StyleSheet.create({
         fontWeight: '500',
     },
     mapContainer: {
-        height: "80%",
+        flex: 1,
         borderRadius: 12,
         overflow: 'hidden',
         backgroundColor: theme.surface,
@@ -1034,7 +1037,6 @@ const getStyles = (theme: any) => StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
-        // marginBottom: 80,
     },
     map: {
         flex: 1,
