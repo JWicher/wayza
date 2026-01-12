@@ -105,12 +105,11 @@ const biskupinCoords = {
 }
 
 export default function TrackingPage() {
-
     const { theme, isDark } = useTheme();
 
     const { foregroundPermissionGranted, backgroundPermissionGranted } = usePermissions();
 
-    const { routeId, routeName } = useLocalSearchParams<{ routeId?: string; routeName?: string }>();
+    const { routeId } = useLocalSearchParams<{ routeId?: string; }>();
 
     const [isTracking, setIsTracking] = useState(false);
     const [initializationError, setInitializationError] = useState<string | null>(null);
@@ -120,9 +119,6 @@ export default function TrackingPage() {
 
     // Current route state
     const [currentRoute, setCurrentRoute] = useState<RouteRecord | null>(null);
-
-    // Auto-created route management
-    const [hasEverStartedTracking, setHasEverStartedTracking] = useState(false);
 
     // Dynamic tracking intervals loaded from settings
     const [trackingIntervalSeconds, setTrackingIntervalSeconds] = useState(DEFAULT_TRACKING_INTERVAL_SECONDS);
@@ -139,7 +135,6 @@ export default function TrackingPage() {
 
     // Ref to track if we've saved any coordinates (to prevent premature cleanup)
     const hasSavedCoordinates = useRef<boolean>(false);
-
 
     // Load tracking settings from database
     const loadTrackingSettings = async () => {
@@ -160,7 +155,6 @@ export default function TrackingPage() {
                 // Initialize database first (doesn't require permissions)
                 try {
                     await initializeDatabase();
-                    console.log('Database initialized successfully');
                 } catch (dbError) {
                     console.error('Critical: Database initialization failed:', dbError);
                     setInitializationError('Database initialization failed. Please reinstall the app.');
@@ -197,13 +191,13 @@ export default function TrackingPage() {
 
         // Delay initialization to ensure contexts are ready
         const timer = setTimeout(initializeTrackingPage, 100);
+
         return () => {
             clearTimeout(timer);
 
             // Stop location tracking
             if (locationSubscription) {
                 locationSubscription.remove();
-                console.log('TrackingPage: Location subscription removed');
             }
 
             // Stop background location tracking
@@ -228,9 +222,8 @@ export default function TrackingPage() {
 
             // ZMIENIONE: Bardziej ostrożny cleanup - czekamy dłużej przed usunięciem
             // Only cleanup if this was NOT a route loaded from URL params AND we haven't saved any coordinates
-            // I TYLKO jeśli tracking NIE był aktywny (nie usuwaj jeśli user startował tracking)
             if (route?.id && !routeId && !hasCoordinates && !isTracking) {
-                // Dodatkowe opóźnienie - daj szansę na zapisanie pierwszej współrzędnej
+                // Additional delay - give a chance to savve the first coordinate
                 setTimeout(() => {
                     // Double-check database to be safe
                     getCoordinatesForRoute(route.id!)
@@ -515,7 +508,6 @@ export default function TrackingPage() {
         }
 
         setIsTracking(true);
-        setHasEverStartedTracking(true);
 
         try {
             // Store route information in AsyncStorage for background task access
@@ -809,7 +801,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     section: {
         marginHorizontal: 15,
         marginTop: 20,
-        marginBottom: 0,
+        marginBottom: 20,
         flex: 1,
         borderWidth: 1,
         borderColor: theme.border,

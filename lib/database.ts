@@ -38,12 +38,10 @@ let initializationPromise: Promise<void> | null = null;
 export const initializeDatabase = async (): Promise<void> => {
     // Prevent concurrent initialization
     if (isDatabaseReady && db) {
-        console.log('Database already initialized');
         return;
     }
 
     if (isInitializing && initializationPromise) {
-        console.log('Database initialization in progress, waiting...');
         return initializationPromise;
     }
 
@@ -51,11 +49,8 @@ export const initializeDatabase = async (): Promise<void> => {
 
     initializationPromise = (async () => {
         try {
-            console.log('Initializing database...');
-
             if (!db) {
                 db = await SQLite.openDatabaseAsync(DATABASE_NAME);
-                console.log('Database connection opened');
             }
 
             // Create the routes table if it doesn't exist
@@ -104,7 +99,6 @@ export const initializeDatabase = async (): Promise<void> => {
             // Initialize default settings if they don't exist
             await initializeDefaultSettings(db);
 
-            console.log('Database initialized successfully');
             isDatabaseReady = true;
         } catch (error) {
             console.error('Error initializing database:', error);
@@ -126,7 +120,6 @@ export const initializeDatabase = async (): Promise<void> => {
 const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
     // If initialization is in progress, wait for it regardless of db state
     if (isInitializing && initializationPromise) {
-        console.log('Database initialization in progress, waiting for completion...');
         await initializationPromise;
     }
 
@@ -161,7 +154,6 @@ export const createRoute = async (name: string): Promise<RouteRecord> => {
             name: name
         };
 
-        console.log(`Created route "${name}" with ID ${route.id}`);
         return route;
     } catch (error) {
         console.error('Error creating route:', error);
@@ -181,7 +173,6 @@ export const getRoutes = async (): Promise<RouteRecord[]> => {
             `SELECT * FROM ${ROUTES_TABLE} ORDER BY name ASC`
         );
 
-        console.log(`Retrieved ${result.length} routes`);
         return result as RouteRecord[];
     } catch (error) {
         console.error('Error getting routes:', error);
@@ -255,7 +246,6 @@ export const updateRoute = async (id: number, name: string): Promise<RouteRecord
             name: name
         };
 
-        console.log(`Updated route with ID ${id} to name "${name}"`);
         return updatedRoute;
     } catch (error) {
         console.error('Error updating route:', error);
@@ -277,7 +267,6 @@ export const deleteRoute = async (id: number): Promise<number> => {
             [id]
         );
 
-        console.log(`Deleted route with ID ${id}`);
         return result.changes;
     } catch (error) {
         console.error('Error deleting route:', error);
@@ -308,7 +297,6 @@ export const addCoordinateRecord = async (
             [routeId, latitude, longitude, actualTimestamp]
         );
 
-        console.log(`Added coordinate record for route ID ${routeId}`);
         return result.lastInsertRowId;
     } catch (error) {
         console.error('Error adding coordinate record:', error);
@@ -330,7 +318,6 @@ export const getCoordinatesForRoute = async (routeId: number): Promise<Coordinat
             [routeId]
         );
 
-        console.log(`Retrieved ${result.length} coordinates for route ID ${routeId}`);
         return result as CoordinateRecord[];
     } catch (error) {
         console.error('Error getting coordinates for route:', error);
@@ -352,7 +339,6 @@ export const removeCoordinatesForRoute = async (routeId: number): Promise<number
             [routeId]
         );
 
-        console.log(`Removed ${result.changes} coordinates for route ID ${routeId}`);
         return result.changes;
     } catch (error) {
         console.error('Error removing coordinates for route:', error);
@@ -376,7 +362,7 @@ export const getCoordinateCountForRoute = async (routeId: number): Promise<numbe
         );
 
         const count = (result as any)?.count || 0;
-        console.log(`Route ID ${routeId} has ${count} coordinates`);
+
         return count;
     } catch (error) {
         console.error('Error getting coordinate count for route:', error);
@@ -394,7 +380,6 @@ export const clearAllCoordinates = async (): Promise<number> => {
 
         const result = await database.runAsync(`DELETE FROM ${COORDINATES_TABLE}`);
 
-        console.log(`Cleared all coordinates: ${result.changes} records deleted`);
         return result.changes;
     } catch (error) {
         console.error('Error clearing all coordinates:', error);
@@ -419,7 +404,6 @@ export const clearAllData = async (): Promise<{ coordinatesDeleted: number, rout
             routesDeleted: routesResult.changes
         };
 
-        console.log(`Cleared all data: ${result.coordinatesDeleted} coordinates and ${result.routesDeleted} routes deleted`);
         return result;
     } catch (error) {
         console.error('Error clearing all data:', error);
@@ -451,7 +435,6 @@ const initializeDefaultSettings = async (database: SQLite.SQLiteDatabase): Promi
                     `INSERT INTO ${SETTINGS_TABLE} (key, value) VALUES (?, ?)`,
                     [setting.key, setting.value]
                 );
-                console.log(`Initialized default setting: ${setting.key} = ${setting.value}`);
             }
         }
     } catch (error) {
@@ -496,7 +479,6 @@ export const setSetting = async (key: string, value: string): Promise<void> => {
             [key, value]
         );
 
-        console.log(`Setting updated: ${key} = ${value}`);
     } catch (error) {
         console.error('Error setting value:', error);
         throw error;
@@ -518,6 +500,7 @@ export const getTrackingSettings = async (): Promise<{ intervalSeconds: number; 
         };
     } catch (error) {
         console.error('Error getting tracking settings:', error);
+
         return { intervalSeconds: 5, intervalM: 10 }; // Default values
     }
 };
@@ -532,7 +515,6 @@ export const setTrackingSettings = async (intervalSeconds: number, intervalM: nu
     try {
         await setSetting('TRACKING_INTERVAL_SECONDS', intervalSeconds.toString());
         await setSetting('TRACKING_INTERVAL_M', intervalM.toString());
-        console.log(`Tracking settings updated: ${intervalSeconds}s, ${intervalM}m`);
     } catch (error) {
         console.error('Error setting tracking settings:', error);
         throw error;
@@ -613,7 +595,6 @@ export const closeDatabase = async (): Promise<void> => {
         if (db) {
             await db.closeAsync();
             db = null;
-            console.log('Database connection closed');
         }
     } catch (error) {
         console.error('Error closing database:', error);
