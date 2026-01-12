@@ -169,34 +169,7 @@ const trackLocation = async (routeName: string) => {
 };
 ```
 
-### 3. Use with React Hook
-
-```typescript
-import { useRouteCoordinates } from './lib/database-example';
-
-function RouteComponent({ routeName }: { routeName: string }) {
-  const {
-    coordinates,
-    loading,
-    error,
-    addCoordinate,
-    clearRoute
-  } = useRouteCoordinates(routeName);
-
-  if (loading) return <Text>Loading...</Text>;
-  if (error) return <Text>Error: {error}</Text>;
-
-  return (
-    <View>
-      <Text>Route: {routeName}</Text>
-      <Text>Coordinates: {coordinates.length}</Text>
-      {/* Render your coordinates */}
-    </View>
-  );
-}
-```
-
-### 4. Integration with MapLibre (React Native)
+### 5. Integration with MapLibre (React Native)
 
 ```typescript
 import * as MapLibreGL from '@maplibre/maplibre-react-native';
@@ -261,25 +234,3 @@ try {
 - Coordinates are ordered by timestamp when retrieved
 - Database connection is reused across function calls
 - Use `closeDatabase()` when your app is shutting down (optional)
-
-## Migration from JSON Files
-
-If you're currently using JSON files for coordinate storage (like `coordinates.json`), you can migrate the data:
-
-```typescript
-import coordinatesData from './coordinates.json';
-import { addCoordinateRecord } from './lib/database';
-
-const migrateFromJSON = async () => {
-  for (const coord of coordinatesData) {
-    await addCoordinateRecord(
-      coord.route || 'default',
-      coord.latitude,
-      coord.longitude,
-      coord.timestamp || Date.now()
-    );
-  }
-};
-```
-
-This database module provides a robust, scalable solution for coordinate storage with better performance than JSON files and the ability to query and filter data efficiently.
