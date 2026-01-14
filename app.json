@@ -4,12 +4,12 @@
         "slug": "where-i-was",
         "version": "1.0.0",
         "orientation": "portrait",
-        "icon": "./assets/icons/icon_1024_transparent.png",
+        "icon": "./assets/icons/favicon_192.png",
         "scheme": "whereiwas",
         "userInterfaceStyle": "automatic",
         "newArchEnabled": true,
         "ios": {
-            "icon": "./assets/icons/icon_1024_transparent.png",
+            "icon": "./assets/icons/favicon_192.png",
             "supportsTablet": true,
             "infoPlist": {
                 "NSLocationWhenInUseUsageDescription": "This app needs access to location when open to track your trips.",
@@ -22,7 +22,7 @@
             "bundleIdentifier": "com.ctsjwtest.whereiwas"
         },
         "android": {
-            "icon": "./assets/icons/icon_1024_transparent.png",
+            "icon": "./assets/icons/favicon_192.png",
             "adaptiveIcon": {
                 "foregroundImage": "./assets/icons/android_adaptive_foreground_1080.png",
                 "backgroundImage": "./assets/icons/android_adaptive_background_1080.png"
